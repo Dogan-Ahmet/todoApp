@@ -115,6 +115,23 @@ export default function HomeScreen() {
     }
   }
 
+  async function completeAllTasks() {
+    if (taskList.length === 0) return;
+    setTaskList((prevList) =>
+      prevList.map((item) => ({ ...item, completed: !item.completed })),
+    );
+    try {
+      const updatePromises = taskList.map((item) => {
+        const taskRef = doc(db, "tasks", item.id);
+        return updateDoc(taskRef, { completed: true });
+      });
+      await Promise.all(updatePromises);
+      console.log("All tasks updated");
+    } catch (error) {
+      console.error("Error updating document:", error);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
@@ -175,11 +192,9 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.footerCard}
-          onPress={() =>
-            setTaskList((prevList) =>
-              prevList.map((item) => ({ ...item, completed: true })),
-            )
-          }
+          onPress={() => {
+            completeAllTasks();
+          }}
         >
           <Ionicons name="checkmark-done-outline" size={24} color="#106e1d" />
           <Text style={{ color: "#106e1d", fontSize: 25 }}>Tümünü Tamamla</Text>
