@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { Firestore, getFirestore } from "firebase/firestore"; // Firestore tipini de ekledik
 
 const firebaseConfig = {
@@ -16,3 +17,5 @@ const app = initializeApp(firebaseConfig);
 
 // db değişkenini dışa aktarırken tipini (Firestore) belirtiyoruz
 export const db: Firestore = getFirestore(app);
+
+export const auth = getAuth(app);
