@@ -4,12 +4,14 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
   updateDoc,
 } from "firebase/firestore"; // Firestore işlemleri için gerekli fonksiyonları ekledik
 import { useEffect, useState } from "react";
 import {
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   TextInput,
@@ -26,34 +28,40 @@ export default function HomeScreen() {
   >([]);
 
   useEffect(() => {
-    async function fetchTasks() {
-      try {
-        // Firestore'dan görevleri alalım
-        const querySnapshot = await getDocs(collection(db, "tasks"));
+    const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const tasksData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        task: doc.data().task,
+        completed: doc.data().completed,
+      }));
+      setTaskList(tasksData);
+    });
+    // async function fetchTasks() {
+    //   try {
+    //     // Firestore'dan görevleri alalım
+    //     const querySnapshot = await getDocs(collection(db, "tasks"));
 
-        // Firestore'dan gelen verileri uygun formata dönüştürelim
-        const tasksData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          task: doc.data().task,
-          completed: doc.data().completed,
-        }));
-        // State'i Firestore'dan gelen verilerle güncelleyelim
-        setTaskList(tasksData);
-      } catch (error) {
-        console.error("Hata:", error);
-      }
-    }
-    fetchTasks();
+    //     // Firestore'dan gelen verileri uygun formata dönüştürelim
+    //     const tasksData = querySnapshot.docs.map((doc) => ({
+    //       id: doc.id,
+    //       task: doc.data().task,
+    //       completed: doc.data().completed,
+    //     }));
+    //     // State'i Firestore'dan gelen verilerle güncelleyelim
+    //     setTaskList(tasksData);
+    //   } catch (error) {
+    //     console.error("Hata:", error);
+    //   }
+    // }
+    // fetchTasks();
+    return () => unsubscribe();
   }, []);
 
   async function taskAddHandler() {
     if (searchQuery.trim() === "") {
       return;
     }
-    setTaskList((prevList) => [
-      ...prevList,
-      { id: Date.now().toString(), task: searchQuery.trim(), completed: false },
-    ]);
     const taskToSave = searchQuery.trim();
     setSearchQuery("");
 
@@ -64,6 +72,10 @@ export default function HomeScreen() {
         completed: false,
         createdAt: new Date(),
       });
+      // setTaskList((prevList) => [
+      //   ...prevList,
+      //   { id: docRef.id, task: searchQuery.trim(), completed: false },
+      // ]);
       console.log("Task added to Firestore: ", taskToSave);
     } catch (error) {
       console.error("Error adding document: ", error);
@@ -87,7 +99,7 @@ export default function HomeScreen() {
   }
 
   async function taskDeleteHandler(id: string) {
-    setTaskList((prevList) => prevList.filter((item) => item.id !== id));
+    // setTaskList((prevList) => prevList.filter((item) => item.id !== id));
 
     try {
       // Firestore'dan ilgili görevi silelim
@@ -123,7 +135,7 @@ export default function HomeScreen() {
     try {
       const updatePromises = taskList.map((item) => {
         const taskRef = doc(db, "tasks", item.id);
-        return updateDoc(taskRef, { completed: true });
+        return updateDoc(taskRef, { completed: !item.completed });
       });
       await Promise.all(updatePromises);
       console.log("All tasks updated");
@@ -149,16 +161,17 @@ export default function HomeScreen() {
           <Text style={styles.buttonText}>Ekle</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView
+      <FlatList
+        data={taskList}
+        keyExtractor={(item) => item.id}
         style={{ width: "100%" }}
         contentContainerStyle={{
           alignItems: "center",
           paddingTop: 50,
           paddingBottom: 70,
         }}
-      >
-        {taskList.map((item) => (
-          <View key={item.id} style={styles.taskCard}>
+        renderItem={({ item }) => (
+          <View style={styles.taskCard}>
             <Text
               style={
                 item.completed
@@ -180,26 +193,38 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        ))}
-        <TouchableOpacity
-          style={styles.footerCard}
-          onPress={() => {
-            clearAllTasks();
-          }}
-        >
-          <Ionicons name="trash-bin-outline" size={24} color="#570707" />
-          <Text style={{ color: "#570707", fontSize: 25 }}>Tümünü Temizle</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.footerCard}
-          onPress={() => {
-            completeAllTasks();
-          }}
-        >
-          <Ionicons name="checkmark-done-outline" size={24} color="#106e1d" />
-          <Text style={{ color: "#106e1d", fontSize: 25 }}>Tümünü Tamamla</Text>
-        </TouchableOpacity>
-      </ScrollView>
+        )}
+        ListFooterComponent={() => (
+          <View>
+            <TouchableOpacity
+              style={styles.footerCard}
+              onPress={() => {
+                clearAllTasks();
+              }}
+            >
+              <Ionicons name="trash-bin-outline" size={24} color="#570707" />
+              <Text style={{ color: "#570707", fontSize: 25 }}>
+                Tümünü Temizle
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.footerCard}
+              onPress={() => {
+                completeAllTasks();
+              }}
+            >
+              <Ionicons
+                name="checkmark-done-outline"
+                size={24}
+                color="#106e1d"
+              />
+              <Text style={{ color: "#106e1d", fontSize: 25 }}>
+                Tümünü Tamamla
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
